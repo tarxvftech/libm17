@@ -82,8 +82,9 @@ typedef struct _LICH {
 } M17_LICH; 
 //without SYNC or other parts
 
+#define M17_STREAM_PREFIX 0x4D313720
 typedef struct _ip_frame {
-	char     magic[4];
+	uint32_t magic;
 	uint16_t streamid;		
 	M17_LICH lich;		
 	uint16_t framenumber;	
@@ -126,7 +127,7 @@ void init_frame(M17_IPFrame * x,
 		){
 	uint8_t *y = (uint8_t *) x;
 	memset(y, 0, sizeof(M17_IPFrame));
-	strncpy(x->magic, "M17 ", 4); //magic bytes to support easy multiplexing with other protocols
+	x->magic = htonl(M17_STREAM_PREFIX);
 	x->streamid = htons(0xCCCC);
 	init_lich(&x->lich, dst,src,frametype,nonce);
 	x->framenumber = htons(framenumber);
