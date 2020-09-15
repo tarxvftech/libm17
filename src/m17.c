@@ -67,23 +67,24 @@ uint64_t encode_callsign_base40(const char *callsign) {
         48b  Address dst
         48b  Address src
         16b  int(M17_Frametype)
-        128b nonce (for encryption)
+        112b nonce (for encryption)
     16b  Frame number counter
     128b payload
     16b  CRC-16 chksum
 */
 
 //all structures must be big endian on the wire, so you'll want htonl (man byteorder 3) and such. 
-typedef struct _LICH {
+typedef struct __attribute__((__packed__)) _LICH {
 	uint8_t  addr_dst[6]; //48 bit int - you'll have to assemble it yourself unfortunately
 	uint8_t  addr_src[6];  
 	uint16_t frametype; //frametype flag field per the M17 spec
-	uint8_t  nonce[16]; //bytes for the nonce
+	uint8_t  nonce[14]; //bytes for the nonce
 } M17_LICH; 
+#define LICH_sz 28
 //without SYNC or other parts
 
 #define M17_STREAM_PREFIX 0x4D313720
-typedef struct _ip_frame {
+typedef struct __attribute__((__packed__)) _ip_frame {
 	uint32_t magic;
 	uint16_t streamid;		
 	M17_LICH lich;		
@@ -92,6 +93,7 @@ typedef struct _ip_frame {
 	uint8_t  crc[2]; 	//16 bit CRC
 
 } M17_IPFrame;
+#define IPFrame_sz LICH_sz+26
 void m17_set_addr(uint8_t * dst, uint64_t address){
 	for( int i = 0,j=5; i < 6 ; i++, j--){
 		dst[j] = (address>>(i*8)) & 0xff;
@@ -114,7 +116,7 @@ void init_lich(M17_LICH * x,
 	m17_set_addr(x->addr_src, src);
 	m17_set_addr(x->addr_dst, dst);
 	x->frametype = htons(frametype);
-	memset(x->nonce, *nonce, 16);
+	memset(x->nonce, *nonce, 14);
 }
 void init_frame(M17_IPFrame * x,
 		uint16_t streamid,
@@ -142,7 +144,7 @@ void explain_frame(){
 			encode_callsign_base40("XLX307 D"),
 			encode_callsign_base40("W2FBI"),
 			5, //voice stream
-			"AAAAAAAAAAAAAAAA", //mark out the nonce clearly
+			"AAAAAAAAAAAAAA", //mark out the nonce clearly
 			13, //just as an example
 			"BBBBBBBBBBBBBBBB" //mark the payload clearly
 			);
@@ -161,11 +163,11 @@ void explain_frame(){
 			printf(" type_ _____0x41 == nonce_________________   ");
 		}
 		if( i == 32 ){
-			printf("\n\n%s__nonce____ _fn__ ______payload________________",indent);
+			printf("\n\n%s_nc__ _fn__ _____________payload_______________",indent);
 			printf("  fn is the frame number");
 		}
 		if( i == 0x30 ){
-			printf("\n\n%s__more payload___ CRC16",indent);
+			printf("\n\n%s_pay_______ CRC16",indent);
 		}
 		if( i>0 && i %16 == 0){ printf("\n"); }
 		if(i%16==0){ printf("0x%04x  ",i); }
