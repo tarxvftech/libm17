@@ -7,7 +7,6 @@
 int indexOf(const char * haystack, char needle);
 
 const char * m17_callsign_alphabet = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-/.";
-//                                    0123456789ABCDEF...
  
 uint64_t m17_callsign2addr( const char * callsign ){
 	uint64_t encoded = 0;
@@ -62,8 +61,13 @@ uint64_t encode_callsign_base40(const char *callsign) {
 	}
 	return encoded;
 }
+
+
+#define M17_STREAM_PREFIX 0x4D313720
 /*
- * An IP Frame is different than an RF frame, and includes a full LICH every frame
+ * An IP Frame is different than an RF frame, and includes a full LICH every frame, and one M17 frame per UDP packet.
+ * Payload is as specified for M17 RF frames.
+
 32b  "M17 " in ascii, useful for multiplexing with other modes - 0x4D313720 as an int, M17_STREAM_PREFIX here
 		Big endian like everything else, first character in the packet is going to be that 'M'
 16b  random streamid, must change every PTT to differentiate streams
@@ -75,6 +79,7 @@ uint64_t encode_callsign_base40(const char *callsign) {
 16b  Frame number counter - 15 unsigned bits for counting, top bit indicates it's the last frame in a stream (end of PTT)
 128b payload
 16b  CRC-16 chksum
+
 */
 
 //all structures must be big endian on the wire, so you'll want htonl (man byteorder 3) and such. 
@@ -87,7 +92,7 @@ typedef struct __attribute__((__packed__)) _LICH {
 #define LICH_sz 28
 //without SYNC or other parts
 
-#define M17_STREAM_PREFIX 0x4D313720
+
 typedef struct __attribute__((__packed__)) _ip_frame {
 	uint32_t magic;
 	uint16_t streamid;		
@@ -98,6 +103,7 @@ typedef struct __attribute__((__packed__)) _ip_frame {
 
 } M17_IPFrame;
 #define IPFrame_sz LICH_sz+26
+
 void m17_set_addr(uint8_t * dst, uint64_t address){
 	for( int i = 0,j=5; i < 6 ; i++, j--){
 		dst[j] = (address>>(i*8)) & 0xff;
@@ -216,8 +222,13 @@ void callsign_tests(){
 	errors += !callsign_test("XLX307 D", 0x00996A4193F8);
 	printf("%d errors\n", errors);
 }
+#define assert(expr) ({expr?:printf("Failure in assertion %s\n",#expr);})
 int main(int argc, char **argv){
 	callsign_tests();
+
+	assert(sizeof(M17_LICH) == LICH_sz);
+	assert(sizeof(M17_IPFrame) == IPFrame_sz);
+
 	explain_frame();
 
 	return 0;
