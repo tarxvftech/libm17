@@ -63,14 +63,18 @@ uint64_t encode_callsign_base40(const char *callsign) {
 	return encoded;
 }
 /*
-240b: Full LICH without sync:
+ * An IP Frame is different than an RF frame, and includes a full LICH every frame
+32b  "M17 " in ascii, useful for multiplexing with other modes - 0x4D313720 as an int, M17_STREAM_PREFIX here
+		Big endian like everything else, first character in the packet is going to be that 'M'
+16b  random streamid, must change every PTT to differentiate streams
+224b Full LICH without sync:
         48b  Address dst
         48b  Address src
         16b  int(M17_Frametype)
         112b nonce (for encryption)
-    16b  Frame number counter
-    128b payload
-    16b  CRC-16 chksum
+16b  Frame number counter - 15 unsigned bits for counting, top bit indicates it's the last frame in a stream (end of PTT)
+128b payload
+16b  CRC-16 chksum
 */
 
 //all structures must be big endian on the wire, so you'll want htonl (man byteorder 3) and such. 
