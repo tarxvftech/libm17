@@ -27,10 +27,10 @@
 
 //all structures must be big endian on the wire, so you'll want htonl (man byteorder 3) and such. 
 typedef struct __attribute__((__packed__)) _LICH {
-	uint8_t  addr_dst[6]; //48 bit int - you'll have to assemble it yourself unfortunately
-	uint8_t  addr_src[6];  
+	char  addr_dst[6]; //48 bit int - you'll have to assemble it yourself unfortunately
+	char  addr_src[6];  
 	uint16_t frametype; //frametype flag field per the M17 spec
-	uint8_t  nonce[14]; //bytes for the nonce
+	char  nonce[14]; //bytes for the nonce
 } M17_LICH; 
 #define LICH_sz 28
 //without SYNC or other parts
@@ -46,16 +46,16 @@ typedef struct __attribute__((__packed__)) _ip_frame {
 	uint16_t streamid;		
 	M17_LICH lich; 
 	uint16_t framenumber;	
-	uint8_t  payload[16]; 	
+	char  payload[16]; 	
 	uint16_t crc;
 
 } M17_IPFrame;
 #define IPFrame_sz LICH_sz+26
 
 typedef struct __attribute__((__packed__)) _rf_frame {
-	uint8_t  lich_chunk[6]; //LICH_sz / x == 6
+	char  lich_chunk[6]; //LICH_sz / x == 6
 	uint16_t framenumber;	
-	uint8_t  payload[16]; 	
+	char  payload[16]; 	
 	uint16_t crc;
 
 } M17_RFFrame;
@@ -63,7 +63,7 @@ typedef struct __attribute__((__packed__)) _rf_frame {
 
 uint64_t m17_callsign2addr( const char * callsign );
 uint64_t encode_callsign_base40(const char *callsign);
-void m17_set_addr(uint8_t * dst, uint64_t address);
+void m17_set_addr(char * dst, uint64_t address);
 void init_lich(M17_LICH * lich, 
 		uint64_t dst, 
 		uint64_t src, 
@@ -76,15 +76,15 @@ void init_ipframe(M17_IPFrame * pkt,
 		uint16_t frametype,
 		char *   nonce,
 		uint16_t framenumber,
-		uint8_t* payload
+		char* payload
 		);
 void init_rfframe(M17_IPFrame * pkt,
 		M17_LICH * lich,
 		uint16_t framenumber,
-		uint8_t* payload
+		char* payload
 		);
-//void copy_lich_chunk(uint8_t * dest, M17_LICH * src, int chunkidx);
-//void copy_rflich_chunk(uint8_t * dest, M17_RFLICH * src, int chunkidx);
+//void copy_lich_chunk(char * dest, M17_LICH * src, int chunkidx);
+//void copy_rflich_chunk(char * dest, M17_RFLICH * src, int chunkidx);
 void explain_frame(); 
 int indexOf(const char * haystack, char needle);
 
@@ -92,7 +92,7 @@ int indexOf(const char * haystack, char needle);
 //CRC stuff from M17_UDP repo, SP5WWP commits
 #define M17_CRC_POLY 0x5935
 void m17_crc_lut_gen(uint16_t *crc_table, uint16_t poly);
-uint16_t m17_calc_crc(const uint16_t*crc_table, const uint8_t* message, uint16_t nBytes);
-uint16_t m17_calc_crc_ez( uint8_t * data, size_t len );
+uint16_t m17_calc_crc(const uint16_t*crc_table, const char* message, uint16_t nBytes);
+uint16_t m17_calc_crc_ez( char * data, size_t len );
 
 #endif

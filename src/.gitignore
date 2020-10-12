@@ -1,5 +1,3 @@
-*.bin
 *.o
 *.so
-libm17.c
-build/
+*.bin

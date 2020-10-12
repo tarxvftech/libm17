@@ -76,7 +76,7 @@ uint64_t encode_callsign_base40(const char *callsign) {
 
 
 
-void m17_set_addr(uint8_t * dst, uint64_t address){
+void m17_set_addr(char * dst, uint64_t address){
 	for( int i = 0,j=5; i < 6 ; i++, j--){
 		dst[j] = (address>>(i*8)) & 0xff;
 		/*
@@ -93,7 +93,7 @@ void init_lich(M17_LICH * lich,
 		uint16_t frametype,
 		char * nonce
 		){
-	uint8_t * lich_as_bytes = (uint8_t *) lich;
+	char * lich_as_bytes = (char *) lich;
 	memset( lich_as_bytes, 0, sizeof(M17_LICH));
 	m17_set_addr(lich->addr_src, src);
 	m17_set_addr(lich->addr_dst, dst);
@@ -107,9 +107,9 @@ void init_ipframe(M17_IPFrame * pkt,
 		uint16_t frametype,
 		char *   nonce,
 		uint16_t framenumber,
-		uint8_t* payload
+		char* payload
 		){
-	uint8_t *pkt_as_bytes = (uint8_t *) pkt;
+	char *pkt_as_bytes = (char *) pkt;
 	memset(pkt_as_bytes, 0, sizeof(M17_IPFrame));
 	pkt->magic = htonl(M17_STREAM_PREFIX);
 	pkt->streamid = htons(0xCCCC);
@@ -118,16 +118,16 @@ void init_ipframe(M17_IPFrame * pkt,
 	memcpy(pkt->payload, payload, 16);
 	/*calc_crc(&pkt->crc, ""); //what bytes here?*/
 }
-/*void copy_lich_chunk(uint8_t * dest, M17_LICH * src, int chunkidx){*/
+/*void copy_lich_chunk(char * dest, M17_LICH * src, int chunkidx){*/
 /*}*/
-/*void copy_rflich_chunk(uint8_t * dest, M17_RFLICH * src, int chunkidx){*/
+/*void copy_rflich_chunk(char * dest, M17_RFLICH * src, int chunkidx){*/
 /*}*/
 void init_rfframe(M17_IPFrame * pkt,
 		M17_LICH * lich, //or RFLICH?
 		uint16_t framenumber,
-		uint8_t* payload
+		char* payload
 		){
-	uint8_t *y = (uint8_t *) pkt;
+	char *y = (char *) pkt;
 	memset(y, 0, sizeof(M17_RFFrame));
 	pkt->framenumber = htons(framenumber);
 	/*copy_lich_chunk(pkt->lich, lich);*/
@@ -155,7 +155,7 @@ void m17_crc_lut_gen(uint16_t *crc_table, uint16_t poly)
 	}
 }
 
-uint16_t m17_calc_crc(const uint16_t* crc_table, const uint8_t* message, uint16_t nBytes)
+uint16_t m17_calc_crc(const uint16_t* crc_table, const char* message, uint16_t nBytes)
 {
 	uint8_t data;
 	uint16_t remainder=0xFFFF;
@@ -168,11 +168,10 @@ uint16_t m17_calc_crc(const uint16_t* crc_table, const uint8_t* message, uint16_
 
 	return(remainder);
 }
-uint16_t m17_calc_crc_ez( uint8_t * data, size_t len ){
+uint16_t m17_calc_crc_ez( char * data, size_t len ){
 	uint16_t CRC_LUT[256];
 	m17_crc_lut_gen( CRC_LUT , M17_CRC_POLY );
 	uint16_t x = m17_calc_crc( CRC_LUT,  data, (uint16_t) len);
-	printf("Got 0x%x\n", x);
 	return x;
 }
 void explain_frame(){
@@ -187,7 +186,7 @@ void explain_frame(){
 			13, //just as an example
 			"BBBBBBBBBBBBBBBB" //mark the payload clearly
 			);
-	uint8_t *y = (uint8_t *) &x;
+	char *y = (char *) &x;
 	printf("0x41 == nonce\n");
 	printf("0x42 == payload\n");
 	printf("0xCC == streamid\n");
@@ -196,7 +195,7 @@ void explain_frame(){
 	printf("           \"M17 \"    SID     destination      source (continued next line)\n");
 	printf("        ___________ _____ _________________ ___________\n");
 	char * indent = "        ";
-	for( int i = 0; i < sizeof(M17_IPFrame); i++){
+	for( int i = 0; i < (int)sizeof(M17_IPFrame); i++){
 		if( i == 16 ){
 			printf("\n\n%s_src_",indent);
 			printf(" type_ _____0x41 == nonce_________________   ");
@@ -251,7 +250,7 @@ void callsign_tests(){
 	errors += !callsign_test("XLX307 D", 0x00996A4193F8);
 	printf("%d errors\n", errors);
 }
-#define assert(expr) ({expr?:printf("Failure in assertion %s\n",#expr);})
+#define assert(expr) ({expr?1:printf("Failure in assertion %s\n",#expr);})
 
 
 //if want to run this directly, compile with -DMAIN=main
