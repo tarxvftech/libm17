@@ -4,9 +4,28 @@
 #include <string.h>
 #include <arpa/inet.h>
 
-int indexOf(const char * haystack, char needle);
+#include "m17.h"
 
-const char * m17_callsign_alphabet = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-/.";
+
+#define tcolBlack  "\u001b[30m"
+#define tcolRed  "\u001b[31m"
+#define tcolGreen  "\u001b[32m"
+#define tcolYellow  "\u001b[33m"
+#define tcolBlue  "\u001b[34m"
+#define tcolMagenta  "\u001b[35m"
+#define tcolCyan  "\u001b[36m"
+#define tcolWhite  "\u001b[37m"
+#define tcolReset  "\u001b[0m"
+
+
+int indexOf(const char * haystack, char needle){
+	char * sp = strchr( haystack, needle);
+	if( sp == NULL ){ 
+		return -1; 
+	} 
+	return (int)(sp-haystack);
+}
+
  
 uint64_t m17_callsign2addr( const char * callsign ){
 	uint64_t encoded = 0;
@@ -27,13 +46,6 @@ uint64_t m17_callsign2addr( const char * callsign ){
 		}
 	}
 	return encoded;
-}
-int indexOf(const char * haystack, char needle){
-	char * sp = strchr( haystack, needle);
-	if( sp == NULL ){ 
-		return -1; 
-	} 
-	return (int)(sp-haystack);
 }
 uint64_t encode_callsign_base40(const char *callsign) {
 	//straight from the spec, unedited and unchecked
@@ -63,46 +75,6 @@ uint64_t encode_callsign_base40(const char *callsign) {
 }
 
 
-#define M17_STREAM_PREFIX 0x4D313720
-/*
- * An IP Frame is different than an RF frame, and includes a full LICH every frame, and one M17 frame per UDP packet.
- * Payload is as specified for M17 RF frames.
-
-32b  "M17 " in ascii, useful for multiplexing with other modes - 0x4D313720 as an int, M17_STREAM_PREFIX here
-		Big endian like everything else, first character in the packet is going to be that 'M'
-16b  random streamid, must change every PTT to differentiate streams
-224b Full LICH without sync:
-        48b  Address dst
-        48b  Address src
-        16b  int(M17_Frametype)
-        112b nonce (for encryption)
-16b  Frame number counter - 15 unsigned bits for counting, top bit indicates it's the last frame in a stream (end of PTT)
-128b payload
-16b  CRC-16 chksum
-
-*/
-
-//all structures must be big endian on the wire, so you'll want htonl (man byteorder 3) and such. 
-typedef struct __attribute__((__packed__)) _LICH {
-	uint8_t  addr_dst[6]; //48 bit int - you'll have to assemble it yourself unfortunately
-	uint8_t  addr_src[6];  
-	uint16_t frametype; //frametype flag field per the M17 spec
-	uint8_t  nonce[14]; //bytes for the nonce
-} M17_LICH; 
-#define LICH_sz 28
-//without SYNC or other parts
-
-
-typedef struct __attribute__((__packed__)) _ip_frame {
-	uint32_t magic;
-	uint16_t streamid;		
-	M17_LICH lich;		
-	uint16_t framenumber;	
-	uint8_t  payload[16]; 	
-	uint8_t  crc[2]; 	//16 bit CRC
-
-} M17_IPFrame;
-#define IPFrame_sz LICH_sz+26
 
 void m17_set_addr(uint8_t * dst, uint64_t address){
 	for( int i = 0,j=5; i < 6 ; i++, j--){
@@ -115,20 +87,20 @@ void m17_set_addr(uint8_t * dst, uint64_t address){
 		*/
 	}
 }
-void init_lich(M17_LICH * x,
+void init_lich(M17_LICH * lich,
 		uint64_t dst,
 		uint64_t src,
 		uint16_t frametype,
 		char * nonce
 		){
-	uint8_t *y = (uint8_t *) x;
-	memset(y, 0, sizeof(M17_LICH));
-	m17_set_addr(x->addr_src, src);
-	m17_set_addr(x->addr_dst, dst);
-	x->frametype = htons(frametype);
-	memset(x->nonce, *nonce, 14);
+	uint8_t * lich_as_bytes = (uint8_t *) lich;
+	memset( lich_as_bytes, 0, sizeof(M17_LICH));
+	m17_set_addr(lich->addr_src, src);
+	m17_set_addr(lich->addr_dst, dst);
+	lich->frametype = htons(frametype);
+	memset(lich->nonce, *nonce, 14);
 }
-void init_frame(M17_IPFrame * x,
+void init_ipframe(M17_IPFrame * pkt,
 		uint16_t streamid,
 		uint64_t dst,
 		uint64_t src,
@@ -137,19 +109,76 @@ void init_frame(M17_IPFrame * x,
 		uint16_t framenumber,
 		uint8_t* payload
 		){
-	uint8_t *y = (uint8_t *) x;
-	memset(y, 0, sizeof(M17_IPFrame));
-	x->magic = htonl(M17_STREAM_PREFIX);
-	x->streamid = htons(0xCCCC);
-	init_lich(&x->lich, dst,src,frametype,nonce);
-	x->framenumber = htons(framenumber);
-	memcpy(x->payload, payload, 16);
-	x->crc[0] = 0xff;
-	x->crc[1] = 0xff;
+	uint8_t *pkt_as_bytes = (uint8_t *) pkt;
+	memset(pkt_as_bytes, 0, sizeof(M17_IPFrame));
+	pkt->magic = htonl(M17_STREAM_PREFIX);
+	pkt->streamid = htons(0xCCCC);
+	init_lich(&pkt->lich, dst,src,frametype,nonce);
+	pkt->framenumber = htons(framenumber);
+	memcpy(pkt->payload, payload, 16);
+	/*calc_crc(&pkt->crc, ""); //what bytes here?*/
+}
+/*void copy_lich_chunk(uint8_t * dest, M17_LICH * src, int chunkidx){*/
+/*}*/
+/*void copy_rflich_chunk(uint8_t * dest, M17_RFLICH * src, int chunkidx){*/
+/*}*/
+void init_rfframe(M17_IPFrame * pkt,
+		M17_LICH * lich, //or RFLICH?
+		uint16_t framenumber,
+		uint8_t* payload
+		){
+	uint8_t *y = (uint8_t *) pkt;
+	memset(y, 0, sizeof(M17_RFFrame));
+	pkt->framenumber = htons(framenumber);
+	/*copy_lich_chunk(pkt->lich, lich);*/
+
+	memcpy(pkt->payload, payload, 16);
+	/*calc_crc(&pkt->crc, ""); //what bytes here?*/
+}
+void m17_crc_lut_gen(uint16_t *crc_table, uint16_t poly)
+{
+	uint16_t remainder;
+
+	for(uint16_t dividend=0; dividend<256; dividend++)
+	{
+		remainder=dividend<<8;
+
+		for(uint8_t bit=8; bit>0; bit--)
+		{
+			if(remainder&(1<<15))
+				remainder=(remainder<<1)^poly;
+			else
+				remainder=(remainder<<1);
+		}
+
+		crc_table[dividend]=remainder;
+	}
+}
+
+uint16_t m17_calc_crc(const uint16_t* crc_table, const uint8_t* message, uint16_t nBytes)
+{
+	uint8_t data;
+	uint16_t remainder=0xFFFF;
+
+	for(uint16_t byte=0; byte<nBytes; byte++)
+	{
+		data=message[byte]^(remainder>>8);
+		remainder=crc_table[data]^(remainder<<8);
+	}
+
+	return(remainder);
+}
+uint16_t m17_calc_crc_ez( uint8_t * data, size_t len ){
+	uint16_t CRC_LUT[256];
+	m17_crc_lut_gen( CRC_LUT , M17_CRC_POLY );
+	uint16_t x = m17_calc_crc( CRC_LUT,  data, (uint16_t) len);
+	printf("Got 0x%x\n", x);
+	return x;
 }
 void explain_frame(){
+	//later: colorize output
 	M17_IPFrame x;
-	init_frame(&x, 
+	init_ipframe(&x, 
 			0xCCCC, //streamid
 			encode_callsign_base40("XLX307 D"),
 			encode_callsign_base40("W2FBI"),
@@ -223,11 +252,21 @@ void callsign_tests(){
 	printf("%d errors\n", errors);
 }
 #define assert(expr) ({expr?:printf("Failure in assertion %s\n",#expr);})
-int main(int argc, char **argv){
+
+
+//if want to run this directly, compile with -DMAIN=main
+#ifndef MAIN
+#define MAIN test_m17_c_main
+#endif
+int MAIN(int argc, char **argv){
 	callsign_tests();
 
 	assert(sizeof(M17_LICH) == LICH_sz);
 	assert(sizeof(M17_IPFrame) == IPFrame_sz);
+
+	assert(m17_calc_crc_ez("",0) ==  0xffff);
+	assert(m17_calc_crc_ez("A",1) == 0x206E);
+	assert(m17_calc_crc_ez("123456789",9) == 0x772B);
 
 	explain_frame();
 
