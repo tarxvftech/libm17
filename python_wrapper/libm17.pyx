@@ -1,5 +1,5 @@
-# distutils: sources = m17.c
-# distutils: include_dirs = ./
+# distutils: sources = ../src/m17.c
+# distutils: include_dirs = ../src/
 
 cimport cm17
 cdef class LibM17:
