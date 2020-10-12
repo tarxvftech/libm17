@@ -22,6 +22,9 @@
 
 */
 
+// TODO : overhaul all structs. not interested in maintaining an IPLICH and an RFLICH and etc etc etc
+
+
 //all structures must be big endian on the wire, so you'll want htonl (man byteorder 3) and such. 
 typedef struct __attribute__((__packed__)) _LICH {
 	uint8_t  addr_dst[6]; //48 bit int - you'll have to assemble it yourself unfortunately
